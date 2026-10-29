@@ -44,6 +44,77 @@ def get_plot_xylim(p1, pt, center, arc_points, margem=100):
     return xlim, ylim
 
 
+def dashed_line(start, end, n_dashes=24, duty=0.6):
+    """Segmentos soltos de ``start`` a ``end`` que simulam uma linha tracejada.
+
+    O VTK com OpenGL2 não implementa padrão de traço em linhas, então cada
+    traço é uma célula de linha independente.
+
+    Parameters
+    ----------
+    start, end : array_like
+        Extremidades da linha.
+    n_dashes : int, optional
+        Quantidade de traços.
+    duty : float, optional
+        Fração de cada período ocupada pelo traço (o restante é vão).
+
+    Returns
+    -------
+    pyvista.PolyData
+        Malha com ``n_dashes`` células de linha.
+    """
+    start = np.asarray(start, float)
+    end = np.asarray(end, float)
+    t0 = np.arange(n_dashes) / n_dashes
+    ts = np.column_stack([t0, t0 + duty / n_dashes]).ravel()
+    points = start + ts[:, np.newaxis] * (end - start)
+    ids = 2 * np.arange(n_dashes)
+    lines = np.column_stack([np.full(n_dashes, 2), ids, ids + 1]).ravel()
+    return pv.PolyData(points, lines=lines)
+
+
+def add_curve_radius(plotter, center, arc_pts, radius, color, visible, name="R"):
+    """Raio tracejado do centro até o meio do arco, rotulado com o valor em metros.
+
+    Parameters
+    ----------
+    plotter : pyvista.Plotter
+        Cena 3D de destino.
+    center : array_like
+        Centro de curvatura do arco.
+    arc_pts : numpy.ndarray
+        Arco amostrado.
+    radius : float
+        Raio de curvatura, em metros.
+    color : str
+        Cor do traço e do rótulo (a mesma do arco).
+    visible : bool
+        Visibilidade inicial dos atores.
+    name : str, optional
+        Prefixo do rótulo.
+
+    Returns
+    -------
+    list
+        Atores da linha e do rótulo, para a GUI exibir ou esconder sem redesenhar.
+        Vazia se o arco for degenerado (raio infinito ou um único ponto).
+    """
+    if len(arc_pts) < 2 or not np.isfinite(radius):
+        return []
+    mid = arc_pts[len(arc_pts) // 2]
+    line_actor = plotter.add_mesh(dashed_line(center, mid), color=color, line_width=3)
+    label_actor = plotter.add_point_labels(
+        [(np.asarray(center) + mid) / 2], [f"{name} = {radius:.1f} m"],
+        font_size=12, bold=True, text_color=color, shape_color="white", shape_opacity=0.75,
+        show_points=False, always_visible=True
+    )
+    actors = [line_actor, label_actor]
+    for actor in actors:
+        actor.SetVisibility(visible)
+    return actors
+
+
 def add_project_trajectory(plotter, Pin, Pbd, pt, marker_radius, legend_items):
     """Desenha o poço planejado: reta até ``Pbd``, ganho de ângulo e tangente até ``pt``.
 
@@ -58,7 +129,8 @@ def add_project_trajectory(plotter, Pin, Pbd, pt, marker_radius, legend_items):
         plotter.add_mesh(pv.Sphere(marker_radius, project["end_of_build"]), color="black")
 
 
-def plot_case_1(plotter, result, show_project_trajectory, show_points_coordinates):
+def plot_case_1(plotter, result, show_project_trajectory, show_points_coordinates,
+                show_curve_radius=False):
     """Desenha o Caso 1 (arco de raio livre) em um plotter PyVista.
 
     Parameters
@@ -69,6 +141,13 @@ def plot_case_1(plotter, result, show_project_trajectory, show_points_coordinate
         Saída de ``solve_case1``.
     show_project_trajectory, show_points_coordinates : bool
         Interruptores da GUI para a sobreposição do poço planejado e os rótulos dos pontos.
+    show_curve_radius : bool, optional
+        Visibilidade inicial do raio tracejado e do seu valor.
+
+    Returns
+    -------
+    list
+        Atores do raio da curva, para a GUI exibir ou esconder sem redesenhar.
     """
     p1 = result["p1"]
     pt = result["pt"]
@@ -132,6 +211,8 @@ def plot_case_1(plotter, result, show_project_trajectory, show_points_coordinate
     for P in arc_pts:
         plotter.add_mesh(pv.Line(center, P), color="gray", line_width=1, opacity=0.6)
 
+    radius_actors = add_curve_radius(plotter, center, arc_pts, result["radius"], "blue", show_curve_radius)
+
     R = np.linalg.norm(pt - p1) * 0.015
 
     plotter.add_mesh(pv.Sphere(R, p1), color="orange")
@@ -168,8 +249,11 @@ def plot_case_1(plotter, result, show_project_trajectory, show_points_coordinate
 
     plotter.add_legend(legend_items, bcolor="white", face="rectangle", size=(0.2, 0.2), loc="upper left")
 
+    return radius_actors
 
-def plot_case_2(plotter, result, show_project_trajectory, show_points_coordinates):
+
+def plot_case_2(plotter, result, show_project_trajectory, show_points_coordinates,
+                show_curve_radius=False):
     """Desenha o Caso 2 (arco de DLS constante mais tangente) em um plotter PyVista.
 
     Parameters
@@ -180,6 +264,13 @@ def plot_case_2(plotter, result, show_project_trajectory, show_points_coordinate
         Saída de ``solve_case2``.
     show_project_trajectory, show_points_coordinates : bool
         Interruptores da GUI para a sobreposição do poço planejado e os rótulos dos pontos.
+    show_curve_radius : bool, optional
+        Visibilidade inicial do raio tracejado e do seu valor.
+
+    Returns
+    -------
+    list
+        Atores do raio da curva, para a GUI exibir ou esconder sem redesenhar.
     """
     Pin = result["Pin"]
     Pbd = result["Pbd"]
@@ -246,6 +337,8 @@ def plot_case_2(plotter, result, show_project_trajectory, show_points_coordinate
     for P in arc_pts:
         plotter.add_mesh(pv.Line(center, P), color="gray", line_width=1, opacity=0.6)
 
+    radius_actors = add_curve_radius(plotter, center, arc_pts, result["radius"], "blue", show_curve_radius)
+
     R = np.linalg.norm(pt - p1) * 0.015
 
     plotter.add_mesh(pv.Sphere(R, p1), color="orange")
@@ -283,7 +376,10 @@ def plot_case_2(plotter, result, show_project_trajectory, show_points_coordinate
 
     plotter.add_legend(legend_items, bcolor="white", face="rectangle", size=(0.2, 0.2), loc="upper left")
 
-def plot_case_3(plotter, result, show_project_trajectory, show_points_coordinates):
+    return radius_actors
+
+def plot_case_3(plotter, result, show_project_trajectory, show_points_coordinates,
+                show_curve_radius=False):
     """Desenha o Caso 3 (alinhamento, hold, curva principal) em um plotter PyVista.
 
     Parameters
@@ -294,6 +390,13 @@ def plot_case_3(plotter, result, show_project_trajectory, show_points_coordinate
         Saída de ``solve_case3``.
     show_project_trajectory, show_points_coordinates : bool
         Interruptores da GUI para a sobreposição do poço planejado e os rótulos dos pontos.
+    show_curve_radius : bool, optional
+        Visibilidade inicial do raio tracejado e do seu valor.
+
+    Returns
+    -------
+    list
+        Atores do raio da curva, para a GUI exibir ou esconder sem redesenhar.
     """
     Pin = result["Pin"]
     Pbd = result["Pbd"]
@@ -401,6 +504,11 @@ def plot_case_3(plotter, result, show_project_trajectory, show_points_coordinate
         for P in main_arc:
             plotter.add_mesh(pv.Line(main_center, P), color="darkgray", line_width=1, opacity=0.4)
 
+    radius_actors = add_curve_radius(plotter, alignment_center, alignment_arc, result["alignment_radius"],
+                                     "blue", show_curve_radius, name="R align")
+    radius_actors += add_curve_radius(plotter, main_center, main_arc, result["main_radius"],
+                                      "green", show_curve_radius, name="R main")
+
     R = np.linalg.norm(pt - p1) * 0.015
 
     plotter.add_mesh(pv.Sphere(R, p1), color="purple")
@@ -452,3 +560,5 @@ def plot_case_3(plotter, result, show_project_trajectory, show_points_coordinate
     legend_items.append(("Project points", "black", "circle"))
 
     plotter.add_legend(legend_items, bcolor="white", face="rectangle", size=(0.24, 0.28), loc="upper left")
+
+    return radius_actors
