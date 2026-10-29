@@ -23,6 +23,7 @@ class WellPathView(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.radius_actors = []
         self.setup_ui()
 
     def setup_ui(self):
@@ -64,6 +65,11 @@ class WellPathView(QWidget):
         self.check_coord = QCheckBox("Show Coordinates")
         self.check_coord.setChecked(False)
         config_layout.addWidget(self.check_coord)
+
+        self.check_radius = QCheckBox("Show Curve Radius")
+        self.check_radius.setChecked(True)
+        self.check_radius.toggled.connect(self.set_radius_visibility)
+        config_layout.addWidget(self.check_radius)
 
         control_layout.addWidget(config_group)
 
@@ -134,6 +140,12 @@ class WellPathView(QWidget):
         self.plotter.view_yz()
         self.plotter.update()
 
+    def set_radius_visibility(self, visible):
+        """Mostra ou esconde o raio da curva já desenhado, sem recalcular."""
+        for actor in self.radius_actors:
+            actor.SetVisibility(visible)
+        self.plotter.render()
+
     def populate_validation_table(self, status_list):
         checks = [ConstraintCheck.from_item(item) for item in status_list]
         self.table_validation.setRowCount(len(checks))
@@ -162,6 +174,7 @@ class WellPathView(QWidget):
         """Interpreta as entradas, executa o caso selecionado e atualiza a cena 3D."""
         try:
             self.plotter.clear()
+            self.radius_actors = []
             self.plotter.add_axes()
             self.plotter.add_text("Processing trajectory...", name="loading_msg", font_size=18, color="black")
             self.plotter.update()
@@ -178,6 +191,7 @@ class WellPathView(QWidget):
 
             show_traj = self.check_traj.isChecked()
             show_coords = self.check_coord.isChecked()
+            show_radius = self.check_radius.isChecked()
             selected_case = self.combo_case.currentIndex() + 1
 
             if selected_case == 1:
@@ -195,11 +209,11 @@ class WellPathView(QWidget):
             if result.is_valid:
                 payload = result.as_dict()
                 if selected_case == 1:
-                    plot_case_1(self.plotter, payload, show_traj, show_coords)
+                    self.radius_actors = plot_case_1(self.plotter, payload, show_traj, show_coords, show_radius)
                 elif selected_case == 2:
-                    plot_case_2(self.plotter, payload, show_traj, show_coords)
+                    self.radius_actors = plot_case_2(self.plotter, payload, show_traj, show_coords, show_radius)
                 else:
-                    plot_case_3(self.plotter, payload, show_traj, show_coords)
+                    self.radius_actors = plot_case_3(self.plotter, payload, show_traj, show_coords, show_radius)
                 self.plotter.update()
             else:
                 self.plotter.clear()
