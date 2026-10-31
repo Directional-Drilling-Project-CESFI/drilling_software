@@ -7,6 +7,7 @@ from drilling.features.minimization import calculate_minimization
 from drilling.features.minimization.auxiliaries import lenght, theta, validate_configuration
 from drilling.features.minimization.defaults import build_default_data, build_default_mesh
 from drilling.features.minimization.grid import read_grdecl
+from drilling.features.operational_window import calculate_operational_window, load_base_case_profile, validate_inputs
 from drilling.features.well_path import solve_case1, solve_case2, solve_case3
 from drilling.features.well_path.defaults import DEFAULT_WELL_PATH_INPUT
 
@@ -25,6 +26,9 @@ def test_public_solvers_have_numpy_docstrings() -> None:
         lenght,
         validate_configuration,
         parse_vector3,
+        calculate_operational_window,
+        load_base_case_profile,
+        validate_inputs,
     ):
         assert func.__doc__, f"{func.__name__} is missing a docstring"
         assert "Returns" in func.__doc__ or "Parameters" in func.__doc__, (
@@ -39,6 +43,10 @@ def test_package_exports() -> None:
     assert well_path.solve_case1 is solve_case1
     assert well_path.DEFAULT_WELL_PATH_INPUT is DEFAULT_WELL_PATH_INPUT
     assert minimization.calculate_minimization is calculate_minimization
+
+    from drilling.features import operational_window
+
+    assert operational_window.calculate_operational_window is calculate_operational_window
 
 
 def test_desktop_entrypoint_importable() -> None:

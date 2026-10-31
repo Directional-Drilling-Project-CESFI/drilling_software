@@ -38,6 +38,11 @@ from drilling.features.minimization.operational import (  # noqa: E402
 )
 from drilling.features.minimization.defaults import build_default_data, build_default_mesh  # noqa: E402
 from drilling.features.minimization.optimize import calculate_minimization  # noqa: E402
+from drilling.features.operational_window import (  # noqa: E402
+    BASE_CASE_PARAMETERS,
+    OperationalWindow,
+    load_base_case_profile,
+)
 from drilling.features.well_path import solve_case1, solve_case2, solve_case3  # noqa: E402
 from drilling.features.well_path.defaults import CASE3_FEASIBLE_DIRECTION, DEFAULT_WELL_PATH_INPUT  # noqa: E402
 
@@ -272,6 +277,36 @@ def capture_minimization_optima() -> None:
     print("wrote", GOLDENS / "minimization_optima.json", flush=True)
 
 
+OPERATIONAL_WINDOW_COLUMNS = [
+    "overburden_gradient_ppg",
+    "pore_pressure_gradient_ppg",
+    "collapse_gradient_ppg",
+    "fracture_gradient_ppg",
+    "lower_limit_ppg",
+    "upper_limit_ppg",
+    "safe_lower_limit_ppg",
+    "safe_upper_limit_ppg",
+]
+
+
+def capture_operational_window() -> None:
+    """Grava as curvas da janela operacional do caso base (NaN vira ``null``)."""
+    window = OperationalWindow(BASE_CASE_PARAMETERS, load_base_case_profile())
+    results = window.calculate()
+    payload = {
+        "parameters": BASE_CASE_PARAMETERS.to_dict(),
+        "trend": list(window.trend),
+        "depth_m": results["depth_m"].tolist(),
+        "columns": {
+            column: [None if np.isnan(value) else float(value) for value in results[column]]
+            for column in OPERATIONAL_WINDOW_COLUMNS
+        },
+    }
+    path = GOLDENS / "operational_window_base_case.json"
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    print("wrote", path, flush=True)
+
+
 def main() -> None:
     """Ponto de entrada da CLI."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -284,6 +319,7 @@ def main() -> None:
     GOLDENS.mkdir(parents=True, exist_ok=True)
     capture_well_path()
     capture_minimization_point()
+    capture_operational_window()
     if args.slow:
         capture_minimization_optima()
 
