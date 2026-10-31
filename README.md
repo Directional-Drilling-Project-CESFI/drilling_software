@@ -1,9 +1,10 @@
 # Drilling Software
 
-Software desktop (PySide6) com dois módulos independentes:
+Software desktop (PySide6) com três módulos independentes:
 
 - **Well Path Correction** (`drilling.features.well_path`) — correção de trajetória 3D (Cases 1, 2 e 3).
 - **Minimization** (`drilling.features.minimization`) — otimização de trajetória Tipo 1 (força, torque, tempo de broca, tempo total) sobre uma malha de reservatório pronta, lida de um arquivo GRDECL.
+- **Operational Window** (`drilling.features.operational_window`) — janela operacional de perfuração a partir do perfil sônico (sobrecarga, poros, colapso e fratura).
 
 A matemática dos solvers está congelada pelos testes golden. Qualquer mudança de fórmula, limite ou default da GUI deve falhar em `pytest`.
 
@@ -64,6 +65,26 @@ Malhas de teste:
 - `tests/data/synthetic_basin.grdecl`: malha realista de teste, gerada por `python scripts/make_test_grid.py`. Tem 3 × 3 km em planta (20 × 20 colunas de 150 m) e 16 formações até ~3,7 km, divididas em 60 camadas (até 100 m no capeamento, ~25 m nos reservatórios). Inclui mergulho, anticlinal, uma falha normal com rejeito de até 90 m, um arenito que se acunha (células inativas) e um canal turbidítico. Usa arenito (1,30), siltito (1,00), marga (0,90), folhelho (0,80) e calcário (0,60). Os valores padrão de Wellhead/Target da GUI caem dentro dela, com o alvo no reservatório arenoso. Um teste garante que o arquivo continua igual ao que o gerador produz.
 
 A `mesh` de intervalos de profundidade (`build_default_mesh`) continua existindo só como geologia dos testes golden e dos scripts antigos.
+
+## Janela operacional
+
+A aba **Operational Window** calcula a janela operacional a partir de um perfil sônico, com o mesmo método da ferramenta `operational_window`: sobrecarga (Gardner), tendência de compactação normal (ajuste log), pressão de poros (Eaton), colapso (Mohr-Coulomb) e fratura (Poisson), estreitada pela margem de segurança.
+
+1. **Load base case** preenche os parâmetros e a tabela de camadas com o caso base (LDA de 1000 m, perfil de 1250 m a 4500 m).
+2. Os parâmetros (LDA, densidade da água, coeficientes de Gardner, fator psi/m → ppg, expoente de Eaton, base da tendência normal e margem) e o perfil (profundidade, tempo de trânsito, σH, σh, Poisson, coesão, ângulo de atrito) podem ser editados; a tabela aceita vírgula decimal.
+3. **Generate window** desenha os gradientes e a janela; a aba *Results Table* mostra todas as colunas.
+4. **Export CSV...** salva a tabela de resultados.
+
+Unidades: profundidade em m (a partir do nível do mar), tempo de trânsito em µs/ft, tensões em psi, densidades em g/cm³ e gradientes em ppg.
+
+```python
+from drilling.features.operational_window import (
+    BASE_CASE_PARAMETERS, calculate_operational_window, load_base_case_profile,
+)
+
+results = calculate_operational_window(BASE_CASE_PARAMETERS, load_base_case_profile())
+results[["depth_m", "safe_lower_limit_ppg", "safe_upper_limit_ppg"]]
+```
 
 ## Ambiente
 

@@ -10,5 +10,7 @@ Estes arquivos JSON congelam a saída numérica dos solvers atuais.
   na malha padrão L1 × R.
 - `minimization_optima.json` — quatro objetivos mais impressões digitais das
   curvas (gerado com `python scripts/capture_goldens.py --slow`).
+- `operational_window_base_case.json` — curvas da janela operacional do caso
+  base (mesmos números da ferramenta `operational_window` original).
 
 Regenere com `scripts/capture_goldens.py`. Não edite os números à mão.

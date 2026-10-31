@@ -62,6 +62,26 @@ class ParamForm:
             value = 0.0
         return _spin(value, spec)
 
+    def set_values(self, values: dict) -> None:
+        """Write values into the widgets; keys missing from ``values`` are left unchanged.
+
+        Parameters
+        ----------
+        values : dict
+            New values, keyed by ``spec.key``.
+        """
+        for spec in self.specs:
+            if spec.key not in values:
+                continue
+            widget = self.widgets[spec.key]
+            value = values[spec.key]
+            if spec.kind == "bool":
+                widget.setChecked(bool(value))
+            elif spec.kind == "optional_float":
+                widget.setText("" if value is None else str(value))
+            else:
+                widget.setValue(float(value))
+
     def to_dict(self) -> dict:
         """Lê os widgets de volta para o dict consumido pelos kernels."""
         params: dict = {}
