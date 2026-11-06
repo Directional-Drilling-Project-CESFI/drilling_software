@@ -5,14 +5,14 @@ A view monta um ``WellPathInput`` a partir dos campos XYZ, chama
 fórmulas de solver.
 """
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
-                               QLineEdit, QPushButton, QComboBox, QCheckBox,
+                               QLineEdit, QPushButton, QComboBox, QCheckBox, QDoubleSpinBox,
                                QGroupBox, QMessageBox, QFrame, QTableWidget,
                                QTableWidgetItem, QHeaderView, QApplication)
 from PySide6.QtCore import Qt
 from pyvistaqt import QtInteractor
 
 from drilling.core import ConstraintCheck, CorrectionResult, WellPathInput
-from drilling.features.well_path.defaults import DEFAULT_WELL_PATH_INPUT
+from drilling.features.well_path.defaults import DEFAULT_DLS_DEG_PER_30M, DEFAULT_WELL_PATH_INPUT
 
 from .logic import solve_case1, solve_case2, solve_case3
 from .plot import plot_case_1, plot_case_2, plot_case_3
@@ -49,6 +49,16 @@ class WellPathView(QWidget):
         form_layout.addRow("pt:", self.input_pt)
         form_layout.addRow("Dir Vector (v):", self.input_v)
 
+        self.input_dls = QDoubleSpinBox()
+        self.input_dls.setDecimals(2)
+        self.input_dls.setRange(0.1, 30.0)
+        self.input_dls.setSingleStep(0.5)
+        self.input_dls.setSuffix(" °/30 m")
+        self.input_dls.setValue(DEFAULT_DLS_DEG_PER_30M)
+        self.input_dls.setToolTip("Dogleg severity of the Case 2 and Case 3 curves. "
+                                  "Case 1 uses a free radius and ignores it.")
+        form_layout.addRow("DLS:", self.input_dls)
+
         control_layout.addWidget(input_group)
 
         config_group = QGroupBox("Settings")
@@ -56,7 +66,9 @@ class WellPathView(QWidget):
 
         self.combo_case = QComboBox()
         self.combo_case.addItems(["Case 1", "Case 2", "Case 3"])
+        self.combo_case.currentIndexChanged.connect(self.update_dls_enabled)
         config_layout.addWidget(self.combo_case)
+        self.update_dls_enabled()
 
         self.check_traj = QCheckBox("Show Project Trajectory")
         self.check_traj.setChecked(True)
@@ -140,6 +152,10 @@ class WellPathView(QWidget):
         self.plotter.view_yz()
         self.plotter.update()
 
+    def update_dls_enabled(self):
+        """O DLS só vale para os Casos 2 e 3; o Caso 1 tem raio livre."""
+        self.input_dls.setEnabled(self.combo_case.currentIndex() != 0)
+
     def set_radius_visibility(self, visible):
         """Mostra ou esconde o raio da curva já desenhado, sem recalcular."""
         for actor in self.radius_actors:
@@ -197,9 +213,9 @@ class WellPathView(QWidget):
             if selected_case == 1:
                 raw = solve_case1(**kwargs)
             elif selected_case == 2:
-                raw = solve_case2(**kwargs)
+                raw = solve_case2(**kwargs, dls_deg=self.input_dls.value())
             else:
-                raw = solve_case3(**kwargs)
+                raw = solve_case3(**kwargs, dls_deg=self.input_dls.value())
 
             result = CorrectionResult.from_solver_dict(raw)
             self.populate_validation_table(result.status)

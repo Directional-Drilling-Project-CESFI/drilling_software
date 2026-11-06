@@ -18,5 +18,8 @@ DEFAULT_WELL_PATH_INPUT = WellPathInput(
 )
 """Cinco vetores que a aba Well Path mostra ao abrir."""
 
+DEFAULT_DLS_DEG_PER_30M = 3.0
+"""DLS padrão das curvas dos Casos 2 e 3, em graus por 30 m (editável na GUI)."""
+
 CASE3_FEASIBLE_DIRECTION = Vector3(0.05, 0.05, -1.0)
 """Direção viável do Caso 3 (o ``v`` padrão da GUI estoura o limite de 20°)."""

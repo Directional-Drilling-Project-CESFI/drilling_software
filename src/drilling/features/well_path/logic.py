@@ -378,13 +378,15 @@ def validate_trajectory_case2(p1, pt, v_init, result, max_ang_deg=70):
     return status
 
 
-def solve_case2(Pin, Pbd, p1, pt, v):
+def solve_case2(Pin, Pbd, p1, pt, v, dls_deg=3.0):
     """Solver público do Caso 2: arco de DLS constante mais tangente, depois validação.
 
     Parameters
     ----------
     Pin, Pbd, p1, pt, v : array_like
         Os mesmos cinco vetores de ``solve_case1``.
+    dls_deg : float, optional
+        Severidade de dogleg do arco, em graus por 30 m. Padrão 3,0.
 
     Returns
     -------
@@ -396,7 +398,6 @@ def solve_case2(Pin, Pbd, p1, pt, v):
     p1 = np.asarray(p1, float)
     pt = np.asarray(pt, float)
     v = normalize(np.asarray(v, float))
-    dls_deg = 3.0
     result = compute_case2_trajectory(p1, pt, v, dls_deg)
 
     if np.isinf(result["radius"]):
